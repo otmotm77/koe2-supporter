@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "koe2-supporter",
+  "version": "1.0.0",
+  "description": "koe-koe.com を便利に使うための拡張機能",
+  "permissions": ["downloads", "storage"],
+  "host_permissions": ["*://koe-koe.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "koe2-supporter",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://koe-koe.com/*"],
+      "js": ["content/user_page.js"]
+    },
+    {
+      "matches": [
+        "*://koe-koe.com/detail.php*",
+        "*://koe-koe.com/archive_detail.php*"
+      ],
+      "js": ["content/audio_page.js"]
+    }
+  ]
+}

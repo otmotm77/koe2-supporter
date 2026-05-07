@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>koe2-supporter</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 380px;
+      min-height: 300px;
+      font-family: sans-serif;
+      font-size: 13px;
+      color: #333;
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e05;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      color: #666;
+    }
+    .tab-btn.active {
+      color: #e05;
+      font-weight: bold;
+      background: #fff0f4;
+    }
+    [data-tab="live-favorites"].active {
+      color: #27ae60;
+      background: #f0f8ff;
+    }
+    .tab-panel { display: none; padding: 10px; }
+    .tab-panel.active { display: block; }
+
+    /* お気に入りタブ（通常・LIVE共通） */
+    #fav-list, #lfav-list { list-style: none; }
+    #fav-list li, #lfav-list li {
+      display: flex;
+      align-items: center;
+      padding: 6px 4px;
+      border-bottom: 1px solid #eee;
+      gap: 8px;
+    }
+    #fav-list li a, #lfav-list li a {
+      flex: 1;
+      color: #333;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #fav-list li a:hover { text-decoration: underline; color: #e05; }
+    #lfav-list li a:hover { text-decoration: underline; color: #27ae60; }
+    .gender-badge {
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #eee;
+      color: #555;
+      white-space: nowrap;
+    }
+    .gender-badge.female { background: #ff4e78; color: #fff; }
+    .gender-badge.male   { background: #4190ff; color: #fff; }
+    .gender-badge.couple { background: #00bacc; color: #fff; }
+    .del-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #aaa;
+      font-size: 16px;
+      padding: 0 2px;
+      line-height: 1;
+    }
+    .del-btn:hover { color: #e05; }
+    #fav-empty, #lfav-empty { color: #999; padding: 20px 0; text-align: center; }
+
+    /* フォルダ設定欄 */
+    #folder-setting {
+      padding: 8px 0 10px;
+      border-bottom: 1px solid #eee;
+      margin-bottom: 10px;
+    }
+    #folder-setting label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+    #folder-setting label small { color: #999; }
+    #folder-setting .row { display: flex; gap: 6px; align-items: center; }
+    #dl-folder-input {
+      flex: 1;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 13px;
+    }
+    #dl-folder-save {
+      padding: 4px 10px !important;
+      font-size: 12px !important;
+      margin-bottom: 0 !important;
+    }
+    #dl-folder-hint { font-size: 11px; color: #888; margin-top: 4px; }
+
+    /* リネームタブ */
+    #rename-panel button {
+      padding: 7px 14px;
+      background: #e05;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    #rename-panel button:disabled { background: #ccc; cursor: default; }
+    #scan-result { margin-top: 8px; font-size: 12px; color: #555; }
+    #rename-preview { list-style: none; margin-top: 8px; max-height: 200px; overflow-y: auto; }
+    #rename-preview li {
+      padding: 4px 2px;
+      border-bottom: 1px solid #eee;
+      font-size: 11px;
+    }
+    #rename-preview li .old { color: #999; }
+    #rename-preview li .arrow { margin: 0 4px; }
+    #rename-preview li .new { color: #333; word-break: break-all; }
+    #rename-status { margin-top: 6px; color: #555; font-size: 12px; }
+    #backup-section {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    #backup-section button {
+      flex: 1;
+      padding: 5px 0 !important;
+      font-size: 12px !important;
+      margin-bottom: 0 !important;
+    }
+    #backup-status { font-size: 11px; color: #888; margin-top: 4px; }
+    #help { padding: 8px; font-size: 12px; line-height: 1.6; max-height: 460px; overflow-y: auto; }
+    #help .help-group { margin-bottom: 10px; }
+    #help .help-group-title {
+      font-size: 11px; font-weight: bold; color: #fff;
+      background: #888; padding: 2px 8px; border-radius: 3px;
+      margin-bottom: 4px; display: block;
+    }
+    #help .help-item {
+      border: 1px solid #e8e8e8; border-radius: 4px;
+      padding: 5px 8px; margin-bottom: 4px; background: #fafafa;
+    }
+    #help .help-item-title { font-weight: bold; color: #333; margin-bottom: 2px; }
+    #help .help-item p, #help .help-item li { color: #555; margin: 1px 0; font-size: 11px; }
+    #help .help-item ul { padding-left: 14px; margin: 2px 0; }
+    #help .chip {
+      display: inline-block; padding: 0 5px; border-radius: 3px;
+      font-size: 10px; vertical-align: middle; color: #fff; margin: 0 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="favorites">♥ お気に入り</button>
+    <button class="tab-btn" data-tab="live-favorites">♥ LIVE</button>
+    <button class="tab-btn" data-tab="rename">設定</button>
+    <button class="tab-btn" data-tab="help">？</button>
+  </div>
+
+  <div id="favorites" class="tab-panel active">
+    <ul id="fav-list"></ul>
+    <p id="fav-empty" style="display:none">お気に入りはまだありません</p>
+  </div>
+
+  <div id="live-favorites" class="tab-panel">
+    <ul id="lfav-list"></ul>
+    <p id="lfav-empty" style="display:none">LIVEお気に入りはまだありません</p>
+  </div>
+
+  <div id="rename" class="tab-panel">
+    <div id="rename-panel">
+      <div id="folder-setting">
+        <label>DLフォルダ名 <small>（Downloads/ 以下）</small></label>
+        <div class="row">
+          <input id="dl-folder-input" type="text" placeholder="koe2" maxlength="80">
+          <button id="dl-folder-save">保存</button>
+        </div>
+        <p id="dl-folder-hint"></p>
+      </div>
+      <button id="pick-folder-btn">📁 フォルダを選択してスキャン</button>
+      <div id="scan-result"></div>
+      <ul id="rename-preview"></ul>
+      <button id="execute-rename-btn" style="display:none">一括リネーム実行</button>
+      <div id="rename-status"></div>
+      <div id="backup-section">
+        <button id="export-btn">⬇ エクスポート</button>
+        <button id="import-btn">⬆ インポート</button>
+        <input id="import-file" type="file" accept=".json" style="display:none">
+      </div>
+      <div id="backup-status"></div>
+    </div>
+  </div>
+
+  <div id="help" class="tab-panel">
+
+    <div class="help-group">
+      <span class="help-group-title">ページ上の機能</span>
+
+      <div class="help-item">
+        <div class="help-item-title">♥ ハートボタン（一覧・詳細）</div>
+        <p>ユーザー名の前に表示。クリックでお気に入り登録／解除。</p>
+        <p><span class="chip" style="background:#e00">♥</span>赤：通常投稿　<span class="chip" style="background:#27ae60">♥</span>緑：LIVE</p>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-title">カードの識別色（一覧）</div>
+        <ul>
+          <li><span class="chip" style="background:#4190ff">■</span> 薄青背景：DL済み</li>
+          <li><span class="chip" style="background:#888">■</span> グレー背景：再生済み</li>
+          <li><span class="chip" style="background:#FFA33B">■</span> オレンジ左ボーダー：お気に入り</li>
+          <li><span class="chip" style="background:#27ae60">■</span> 緑左ボーダー：LIVEお気に入り</li>
+        </ul>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-title">フィルタバー（一覧ページ上部）</div>
+        <p>♥ / DL / ▶ × 未指定・済・未 のAND絞込み。</p>
+        <p>ページ移動しても保持（タブを閉じるとリセット）。</p>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-title">⬇ ダウンロードボタン（詳細ページ）</div>
+        <p>音声下に表示。設定フォルダに自動保存。</p>
+        <p>通常：<code>[名前][ID][日付]タイトル.mp3</code></p>
+        <p>LIVE：<code>[名前][l_ID][日付]配信.mp3</code></p>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-title">▶ 再生済みバッジ（詳細ページ）</div>
+        <p>再生開始で「▶ 再生済み」を表示。× クリアで解除。</p>
+      </div>
+    </div>
+
+    <div class="help-group">
+      <span class="help-group-title">ポップアップの機能</span>
+
+      <div class="help-item">
+        <div class="help-item-title">♥ お気に入り / ♥ LIVE タブ</div>
+        <p>登録済みユーザー一覧。名前クリックで投稿一覧へ。× で削除。</p>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-title">設定タブ</div>
+        <ul>
+          <li><b>DLフォルダ名</b>：保存先サブフォルダ（デフォルト: koe2）</li>
+          <li><b>DBファイル更新＆リネーム</b>：数字名ファイルを一括リネーム。リネーム済み検出でDL済みを復元。</li>
+          <li><b>エクスポート／インポート</b>：全データをJSONで保存・復元（再インストール対策）。</li>
+        </ul>
+      </div>
+    <div class="help-group">
+      <span class="help-group-title">プライバシー・免責</span>
+      <div class="help-item">
+        <ul>
+          <li>本拡張機能が保存するデータ（お気に入り・DL履歴・再生履歴・設定）は<b>すべてお使いのPC内にのみ</b>保存されます。</li>
+          <li>外部サーバーへのデータ送信・収集は一切行いません。</li>
+          <li>本拡張機能の利用によって生じたいかなる損害についても、作者は一切の責任を負いません。自己責任にてご利用ください。</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

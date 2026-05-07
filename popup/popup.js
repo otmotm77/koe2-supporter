@@ -2,11 +2,11 @@ const FAV_KEY  = 'favorites';
 const LFAV_KEY = 'live_favorites';
 const DL_KEY   = 'downloads';
 const SETTINGS_KEY = 'settings';
-const RENAME_PATTERN      = /^(\d+)\.(mp3|wav|m4a|ogg|flac)$/i;
-const LIVE_RENAME_PATTERN = /^live_0?(\d+)\.(mp3|wav|m4a|ogg|flac)$/i;
+const RENAME_PATTERN      = /^(\d+)\.(mp3|m4a|ogg|wav|3gp|amr|3ga|m4v|mp4|aac|flac)$/i;
+const LIVE_RENAME_PATTERN = /^live_0?(\d+)\.(mp3|m4a|ogg|wav|3gp|amr|3ga|m4v|mp4|aac|flac)$/i;
 // リネーム済みファイルの検出: [name][id][YYYYMMDD]title.ext
-const RENAMED_PATTERN      = /^\[.+?\]\[(\d+)\]\[\d{8}\].+\.(mp3|wav|m4a|ogg|flac)$/i;
-const LIVE_RENAMED_PATTERN = /^\[.+?\]\[l_(\d+)\]\[\d{8}\].+\.(mp3|wav|m4a|ogg|flac)$/i;
+const RENAMED_PATTERN      = /^\[.+?\]\[(\d+)\]\[\d{8}\].+\.(mp3|m4a|ogg|wav|3gp|amr|3ga|m4v|mp4|aac|flac)$/i;
+const LIVE_RENAMED_PATTERN = /^\[.+?\]\[l_(\d+)\]\[\d{8}\].+\.(mp3|m4a|ogg|wav|3gp|amr|3ga|m4v|mp4|aac|flac)$/i;
 const DEFAULT_FOLDER = 'koe2';
 
 // ── タブ切り替え ──────────────────────────────────────────────
@@ -221,6 +221,22 @@ pickBtn.addEventListener('click', async () => {
     return;
   }
 
+  // キャッシュなしの件数を事前カウントして確認
+  const FETCH_INTERVAL_MS = 300;
+  const CONFIRM_THRESHOLD = 50;
+  const uncached = targets.filter(t => !dlCache[t.isLive ? `live_${t.id}` : t.id]);
+  if (uncached.length > CONFIRM_THRESHOLD) {
+    const sec = Math.round(uncached.length * FETCH_INTERVAL_MS / 1000);
+    const min = Math.floor(sec / 60);
+    const timeStr = min > 0
+      ? `約${min}分${sec % 60 > 0 ? (sec % 60) + '秒' : ''}`
+      : `約${sec}秒`;
+    const ok = confirm(
+      `未取得ファイルが ${uncached.length} 件あります。\nサーバー負荷軽減のため ${timeStr} かかります。\n続行しますか？`
+    );
+    if (!ok) { pickBtn.disabled = false; return; }
+  }
+
   scanResult.textContent = `${targets.length} 件を照会中…`;
   let done = 0;
 
@@ -238,6 +254,7 @@ pickBtn.addEventListener('click', async () => {
         title    = info.title;
         dateStr  = info.dateStr;
         dlCache[dlKey] = { id: dlKey, username, title, date: dateStr };
+        await new Promise(r => setTimeout(r, FETCH_INTERVAL_MS));
       } else {
         const info = await fetchFromBg('fetchVoicePage', t.id);
         if (!info.ok) throw new Error(info.error || '取得失敗');
@@ -246,6 +263,7 @@ pickBtn.addEventListener('click', async () => {
         title    = info.title;
         dateStr  = formatDate(date);
         dlCache[dlKey] = { id: dlKey, username, title, date: dateStr };
+        await new Promise(r => setTimeout(r, FETCH_INTERVAL_MS));
       }
 
       const filenameId = t.isLive ? `l_${t.id}` : t.id;

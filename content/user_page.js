@@ -22,7 +22,7 @@
   }
 
   async function toggleFav(userId, name, profileUrl, gender, live) {
-    if (!favCache) await loadFavs();
+    if (!favCache || !lfavCache) await loadFavs();
     const cache = live ? lfavCache : favCache;
     const key   = live ? LFAV_KEY  : FAV_KEY;
     const idx   = cache.findIndex(f => f.id === userId);

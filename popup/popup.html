@@ -22,7 +22,7 @@
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       color: #666;
     }
     .tab-btn.active {
@@ -33,6 +33,10 @@
     [data-tab="live-favorites"].active {
       color: #27ae60;
       background: #f0f8ff;
+    }
+    [data-tab="blacklist"].active {
+      color: #c00;
+      background: #fff0f0;
     }
     .tab-panel { display: none; padding: 10px; }
     .tab-panel.active { display: block; }
@@ -77,7 +81,32 @@
       line-height: 1;
     }
     .del-btn:hover { color: #e05; }
-    #fav-empty, #lfav-empty { color: #999; padding: 20px 0; text-align: center; }
+    #fav-empty, #lfav-empty, #bl-empty { color: #999; padding: 20px 0; text-align: center; }
+    #bl-list { list-style: none; }
+    #bl-list li {
+      display: flex;
+      align-items: center;
+      padding: 6px 4px;
+      border-bottom: 1px solid #eee;
+      gap: 8px;
+    }
+    #bl-list li a {
+      flex: 1;
+      color: #333;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #bl-list li a:hover { text-decoration: underline; color: #c00; }
+    .type-label {
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+    .type-label.normal { background: #eee; color: #555; }
+    .type-label.live   { background: #27ae60; color: #fff; }
 
     /* フォルダ設定欄 */
     #folder-setting {
@@ -158,12 +187,22 @@
       display: inline-block; padding: 0 5px; border-radius: 3px;
       font-size: 10px; vertical-align: middle; color: #fff; margin: 0 1px;
     }
+    .help-history { margin-top: 8px; }
+    .help-history > summary {
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+    .help-history > summary::-webkit-details-marker { display: none; }
+    .help-history > summary::after { content: ' ▸'; font-size: 10px; }
+    .help-history[open] > summary::after { content: ' ▾'; }
   </style>
 </head>
 <body>
   <div class="tabs">
-    <button class="tab-btn active" data-tab="favorites">♥ お気に入り</button>
-    <button class="tab-btn" data-tab="live-favorites">♥ LIVE</button>
+    <button class="tab-btn active" data-tab="favorites">♥USER</button>
+    <button class="tab-btn" data-tab="live-favorites">♥LIVE</button>
+    <button class="tab-btn" data-tab="blacklist">🚫BL</button>
     <button class="tab-btn" data-tab="rename">設定</button>
     <button class="tab-btn" data-tab="help">？</button>
   </div>
@@ -176,6 +215,11 @@
   <div id="live-favorites" class="tab-panel">
     <ul id="lfav-list"></ul>
     <p id="lfav-empty" style="display:none">LIVEお気に入りはまだありません</p>
+  </div>
+
+  <div id="blacklist" class="tab-panel">
+    <ul id="bl-list"></ul>
+    <p id="bl-empty" style="display:none">ブラックリストはまだありません</p>
   </div>
 
   <div id="rename" class="tab-panel">
@@ -204,29 +248,37 @@
 
   <div id="help" class="tab-panel">
 
+    <div style="padding:6px 0 10px;text-align:center;border-bottom:1px solid #eee;margin-bottom:8px;">
+      <a href="https://koe-koe.com/" target="_blank" rel="noopener"
+         style="color:#e05;font-weight:bold;text-decoration:none;font-size:13px;">
+        🎙 koe-koe.com を開く
+      </a>
+    </div>
+
     <div class="help-group">
       <span class="help-group-title">ページ上の機能</span>
 
       <div class="help-item">
-        <div class="help-item-title">♥ ハートボタン（一覧・詳細）</div>
-        <p>ユーザー名の前に表示。クリックでお気に入り登録／解除。</p>
-        <p><span class="chip" style="background:#e00">♥</span>赤：通常投稿　<span class="chip" style="background:#27ae60">♥</span>緑：LIVE</p>
+        <div class="help-item-title">♥ / 🚫 ボタン（一覧・詳細）</div>
+        <p>ユーザー名の前に表示。♥ でお気に入り、🚫 でブラックリスト登録／解除。</p>
       </div>
 
       <div class="help-item">
-        <div class="help-item-title">カードの識別色（一覧）</div>
+        <div class="help-item-title">一覧/検索の色分け</div>
         <ul>
-          <li><span class="chip" style="background:#4190ff">■</span> 薄青背景：DL済み</li>
-          <li><span class="chip" style="background:#888">■</span> グレー背景：再生済み</li>
-          <li><span class="chip" style="background:#FFA33B">■</span> オレンジ左ボーダー：お気に入り</li>
-          <li><span class="chip" style="background:#27ae60">■</span> 緑左ボーダー：LIVEお気に入り</li>
+          <li><span class="chip" style="background:#4190ff">　</span> 薄青背景：DL済み</li>
+          <li><span class="chip" style="background:#aaa">　</span> 灰薄背景：再生済み</li>
+          <li><span class="chip" style="background:#777">　</span> 灰濃背景：ブラックリスト</li>
+          <li><span class="chip" style="background:#FFA33B">　</span> 橙左ボーダー：お気に入り</li>
+          <li><span class="chip" style="background:#27ae60">　</span> 緑左ボーダー：LIVEお気に入り</li>
         </ul>
       </div>
 
       <div class="help-item">
         <div class="help-item-title">フィルタバー（一覧ページ上部）</div>
-        <p>♥ / DL / ▶ × 未指定・済・未 のAND絞込み。</p>
-        <p>ページ移動しても保持（タブを閉じるとリセット）。</p>
+        <p>♥ / DL / ▶ 未指定・済・未 のAND絞込み</p>
+        <p>🚫 含む / 除外（デフォルト：除外）</p>
+        <p>ページ移動しても保持（タブを閉じるとリセット）</p>
       </div>
 
       <div class="help-item">
@@ -246,8 +298,14 @@
       <span class="help-group-title">ポップアップの機能</span>
 
       <div class="help-item">
-        <div class="help-item-title">♥ お気に入り / ♥ LIVE タブ</div>
+        <div class="help-item-title">♥USER / ♥LIVE タブ</div>
         <p>登録済みユーザー一覧。名前クリックで投稿一覧へ。× で削除。</p>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-title">🚫BL タブ</div>
+        <p>ブラックリスト一覧（通常・LIVE混在）。× で削除。</p>
+        <p>登録ユーザーは一覧ページでデフォルト非表示。</p>
       </div>
 
       <div class="help-item">
@@ -258,8 +316,28 @@
           <li><b>エクスポート／インポート</b>：全データをJSONで保存・復元（再インストール対策）。</li>
         </ul>
       </div>
+    </div>
+
     <div class="help-group">
-      <span class="help-group-title">更新履歴</span>
+      <span class="help-group-title">プライバシー・免責</span>
+      <div class="help-item">
+        <ul>
+          <li>本拡張機能が保存するデータ（お気に入り・DL履歴・再生履歴・設定）は<b>すべてお使いのPC内にのみ</b>保存されます。</li>
+          <li>外部サーバーへのデータ送信・収集は一切行いません。</li>
+          <li>本拡張機能の利用によって生じたいかなる損害についても、作者は一切の責任を負いません。自己責任にてご利用ください。</li>
+        </ul>
+      </div>
+    </div>
+
+    <details class="help-group help-history">
+      <summary class="help-group-title">更新履歴</summary>
+      <div class="help-item">
+        <div class="help-item-title">v1.1.0 <span style="font-weight:normal;color:#888">2026-05-11</span></div>
+        <ul>
+          <li>ブラックリスト機能追加（🚫BLタブ・ページ上BLボタン・フィルタ除外）</li>
+          <li>識別色調整・フィルタUI改善</li>
+        </ul>
+      </div>
       <div class="help-item">
         <div class="help-item-title">v1.0.2 <span style="font-weight:normal;color:#888">2025-05-07</span></div>
         <ul>
@@ -280,18 +358,7 @@
           <li>設定タブ（フォルダ設定・DBリネーム・エクスポート/インポート）</li>
         </ul>
       </div>
-    </div>
-
-    <div class="help-group">
-      <span class="help-group-title">プライバシー・免責</span>
-      <div class="help-item">
-        <ul>
-          <li>本拡張機能が保存するデータ（お気に入り・DL履歴・再生履歴・設定）は<b>すべてお使いのPC内にのみ</b>保存されます。</li>
-          <li>外部サーバーへのデータ送信・収集は一切行いません。</li>
-          <li>本拡張機能の利用によって生じたいかなる損害についても、作者は一切の責任を負いません。自己責任にてご利用ください。</li>
-        </ul>
-      </div>
-    </div>
+    </details>
 
   </div>
 

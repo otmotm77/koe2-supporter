@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "koe2-supporter",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "koe-koe.com を便利に使うための拡張機能",
   "permissions": ["downloads", "storage"],
   "host_permissions": ["*://koe-koe.com/*"],

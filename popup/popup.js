@@ -1,5 +1,6 @@
 const FAV_KEY  = 'favorites';
 const LFAV_KEY = 'live_favorites';
+const BL_KEY   = 'blacklist';
 const DL_KEY   = 'downloads';
 const SETTINGS_KEY = 'settings';
 const RENAME_PATTERN      = /^(\d+)\.(mp3|m4a|ogg|wav|3gp|amr|3ga|m4v|mp4|aac|flac)$/i;
@@ -83,9 +84,51 @@ function renderLiveFavorites(list) {
 
 chrome.storage.local.get(LFAV_KEY, data => renderLiveFavorites(data[LFAV_KEY] || []));
 
+// ── ブラックリストタブ ─────────────────────────────────────────
+const blList  = document.getElementById('bl-list');
+const blEmpty = document.getElementById('bl-empty');
+
+function renderBlacklist(list) {
+  blList.innerHTML = '';
+  if (list.length === 0) { blEmpty.style.display = ''; return; }
+  blEmpty.style.display = 'none';
+  const genderLabels = { female: '女性', male: '男性', couple: 'カップル' };
+  list.slice().reverse().forEach(entry => {
+    const isLive = entry.id.startsWith('live:');
+    const li = document.createElement('li');
+    const typeLabel = document.createElement('span');
+    typeLabel.className = `type-label ${isLive ? 'live' : 'normal'}`;
+    typeLabel.textContent = isLive ? 'LIVE' : 'USER';
+    const a = document.createElement('a');
+    a.href = entry.profileUrl; a.textContent = entry.name; a.target = '_blank'; a.rel = 'noopener';
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn'; delBtn.textContent = '×'; delBtn.title = '削除';
+    delBtn.addEventListener('click', () => removeFromBlacklist(entry.id));
+    if (!isLive && entry.gender) {
+      const badge = document.createElement('span');
+      badge.className = `gender-badge ${entry.gender}`;
+      badge.textContent = genderLabels[entry.gender] || entry.gender;
+      li.append(typeLabel, a, badge, delBtn);
+    } else {
+      li.append(typeLabel, a, delBtn);
+    }
+    blList.appendChild(li);
+  });
+}
+
+function removeFromBlacklist(id) {
+  chrome.storage.local.get(BL_KEY, data => {
+    const list = (data[BL_KEY] || []).filter(b => b.id !== id);
+    chrome.storage.local.set({ [BL_KEY]: list }, () => renderBlacklist(list));
+  });
+}
+
+chrome.storage.local.get(BL_KEY, data => renderBlacklist(data[BL_KEY] || []));
+
 chrome.storage.onChanged.addListener(changes => {
   if (changes[FAV_KEY])  renderFavorites(changes[FAV_KEY].newValue || []);
   if (changes[LFAV_KEY]) renderLiveFavorites(changes[LFAV_KEY].newValue || []);
+  if (changes[BL_KEY])   renderBlacklist(changes[BL_KEY].newValue || []);
 });
 
 // ── リネーム支援タブ：DOM 参照 ────────────────────────────────
@@ -353,7 +396,7 @@ const importBtn    = document.getElementById('import-btn');
 const importFile   = document.getElementById('import-file');
 const backupStatus = document.getElementById('backup-status');
 
-const BACKUP_KEYS = ['favorites', 'live_favorites', 'downloads', 'played', 'settings'];
+const BACKUP_KEYS = ['favorites', 'live_favorites', 'blacklist', 'downloads', 'played', 'settings'];
 
 exportBtn.addEventListener('click', () => {
   chrome.storage.local.get(BACKUP_KEYS, data => {

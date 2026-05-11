@@ -1,17 +1,20 @@
 (() => {
   const FAV_KEY  = 'favorites';
   const LFAV_KEY = 'live_favorites';
+  const BL_KEY   = 'blacklist';
   const GENDER = { '1': 'female', '2': 'male', '3': 'couple' };
 
   let favCache  = null;
   let lfavCache = null;
+  let blCache   = null;
 
   // ── ストレージ ───────────────────────────────────────────────
   function loadFavs() {
     return new Promise(resolve => {
-      chrome.storage.local.get([FAV_KEY, LFAV_KEY], d => {
+      chrome.storage.local.get([FAV_KEY, LFAV_KEY, BL_KEY], d => {
         favCache  = d[FAV_KEY]  || [];
         lfavCache = d[LFAV_KEY] || [];
+        blCache   = d[BL_KEY]   || [];
         resolve();
       });
     });
@@ -19,6 +22,18 @@
 
   function isFav(userId, live) {
     return (live ? lfavCache : favCache)?.some(f => f.id === userId) ?? false;
+  }
+
+  function isBl(userId) {
+    return blCache?.some(b => b.id === userId) ?? false;
+  }
+
+  async function toggleBl(userId, name, profileUrl, gender) {
+    if (!blCache) await loadFavs();
+    const idx = blCache.findIndex(b => b.id === userId);
+    if (idx >= 0) blCache.splice(idx, 1);
+    else blCache.push({ id: userId, name, profileUrl, gender, addedAt: Date.now() });
+    chrome.storage.local.set({ [BL_KEY]: blCache });
   }
 
   async function toggleFav(userId, name, profileUrl, gender, live) {
@@ -35,6 +50,7 @@
   function makeHeart(userId, name, profileUrl, gender, live = false) {
     const btn = document.createElement('button');
     btn.className = 'koe2-heart' + (live ? ' koe2-heart--live' : '');
+    btn.textContent = '♥';
     btn.dataset.koe2Id   = userId;
     btn.dataset.koe2Live = live ? '1' : '';
     setHeartState(btn, isFav(userId, live));
@@ -56,9 +72,37 @@
   }
 
   function setHeartState(btn, on) {
-    btn.textContent = on ? '♥' : '♡';
     btn.title = on ? 'お気に入りから削除' : 'お気に入りに追加';
     btn.classList.toggle('koe2-heart--on', on);
+  }
+
+  // ── BLボタン生成 ─────────────────────────────────────────────
+  function makeBlBtn(userId, name, profileUrl, gender) {
+    const btn = document.createElement('button');
+    btn.className = 'koe2-bl-btn';
+    btn.textContent = '🚫';
+    btn.dataset.koe2BlId = userId;
+    setBLState(btn, isBl(userId));
+
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      await toggleBl(userId, name, profileUrl, gender);
+      const on = isBl(userId);
+      document.querySelectorAll(`.koe2-bl-btn[data-koe2-bl-id="${CSS.escape(userId)}"]`)
+        .forEach(b => {
+          setBLState(b, on);
+          b.closest('.content')?.classList.toggle('koe2-bl-card', on);
+        });
+      applyFilter();
+    });
+
+    return btn;
+  }
+
+  function setBLState(btn, on) {
+    btn.title = on ? 'ブラックリストから削除' : 'ブラックリストに追加';
+    btn.classList.toggle('koe2-bl-btn--on', on);
   }
 
   // ── スタイル注入 ─────────────────────────────────────────────
@@ -69,7 +113,7 @@
     s.textContent = `
       .koe2-heart {
         background: none; border: none; padding: 0 2px; margin-right: 2px;
-        cursor: pointer; font-size: 14px; line-height: 1;
+        cursor: pointer; font-size: 14px; line-height: 13px;
         vertical-align: middle; color: #ccc; display: inline-block;
       }
       .koe2-heart--on { color: #e00; }
@@ -82,16 +126,25 @@
         padding: 0 4px; margin-right: 4px; vertical-align: middle;
       }
       .koe2-dl-row .content-inner     { background: #d4eaff !important; }
-      .koe2-played-row .content-inner { background: #f0f0f0 !important; }
+      .koe2-played-row .content-inner { background: #d8d8d8 !important; }
       .koe2-fav-card       { border-left: 3px solid #FFA33B !important; }
       .koe2-fav-card--live { border-left: 3px solid #27ae60 !important; }
       #koe2-filter { display:flex;align-items:center;gap:6px;padding:5px 8px;background:#f5f5f5;border-bottom:1px solid #ddd;font-size:11px;flex-wrap:wrap;margin-bottom:2px; }
       .koe2-fg { display:flex;align-items:center;gap:2px; }
-      .koe2-fb { padding:1px 8px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;font-size:11px;color:#555; }
+      .koe2-fl { color:#555;width:26px;text-align:center;display:inline-block;font-size:10px; }
+      .koe2-fb { padding:0 8px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;font-size:11px;color:#555;height:20px;line-height:18px;box-sizing:border-box; }
       .koe2-fb:hover { border-color:#999; }
       .koe2-fb.on-none { background:#eee;border-color:#aaa; }
       .koe2-fb.on-done { color:#fff; }
       .koe2-fb.on-not  { background:#444;color:#fff;border-color:#444; }
+      .koe2-bl-btn {
+        background:none; border:none; padding:0 2px; margin-right:2px;
+        cursor:pointer; font-size:11px; line-height:1;
+        vertical-align:middle; display:inline-block; opacity:0.15;
+      }
+      .koe2-bl-btn--on  { opacity:1; }
+      .koe2-bl-btn:hover { opacity:0.5; }
+      .koe2-bl-card .content-inner { background: #b0b0b0 !important; }
     `;
     document.head.appendChild(s);
   }
@@ -131,8 +184,9 @@
     if (!word) return;
     // トリップ: <a>の直後のテキストノード
     const displayName = word + extractTrip(a);
-    el.insertAdjacentElement('beforebegin',
-      makeHeart(displayName + '|' + g, displayName, a.href, GENDER[g] || '', false));
+    const heart = makeHeart(displayName + '|' + g, displayName, a.href, GENDER[g] || '', false);
+    el.insertAdjacentElement('beforebegin', heart);
+    heart.insertAdjacentElement('afterend', makeBlBtn(displayName + '|' + g, displayName, a.href, GENDER[g] || ''));
   }
 
   // 音声一覧 / archive_detail / archive_list / archive_search:
@@ -168,8 +222,9 @@
       a.appendChild(el);
     }
 
-    el.insertAdjacentElement('beforebegin',
-      makeHeart(userId, displayName, profileUrl, GENDER[g] || '', live));
+    const heart = makeHeart(userId, displayName, profileUrl, GENDER[g] || '', live);
+    el.insertAdjacentElement('beforebegin', heart);
+    heart.insertAdjacentElement('afterend', makeBlBtn(userId, displayName, profileUrl, GENDER[g] || ''));
   }
 
   // post_users.php:
@@ -188,8 +243,9 @@
     const trip = textInA.startsWith(word)
       ? (textInA.slice(word.length).match(/^([◆◇][^\s]+)/)?.[1] || '') : '';
     const displayName = word + trip;
-    a.insertAdjacentElement('beforebegin',
-      makeHeart(displayName + '|' + g, displayName, a.href, GENDER[g] || '', false));
+    const heart = makeHeart(displayName + '|' + g, displayName, a.href, GENDER[g] || '', false);
+    a.insertAdjacentElement('beforebegin', heart);
+    heart.insertAdjacentElement('afterend', makeBlBtn(displayName + '|' + g, displayName, a.href, GENDER[g] || ''));
   }
 
   // ── 一括注入 ─────────────────────────────────────────────────
@@ -198,6 +254,15 @@
     document.querySelectorAll('span.entry_auth:not([data-koe2])').forEach(processEntryAuth);
     document.querySelectorAll('li.gender1:not([data-koe2]), li.gender2:not([data-koe2]), li.gender3:not([data-koe2])')
       .forEach(processUserListItem);
+  }
+
+  // ── BLカードボーダー ─────────────────────────────────────────
+  function refreshBlCards() {
+    document.querySelectorAll('.koe2-bl-btn').forEach(btn => {
+      const on = isBl(btn.dataset.koe2BlId);
+      setBLState(btn, on);
+      btn.closest('.content')?.classList.toggle('koe2-bl-card', on);
+    });
   }
 
   // ── お気に入りカードボーダー ─────────────────────────────────
@@ -251,10 +316,10 @@
   // ── フィルタバー ─────────────────────────────────────────────
   const FILTER_SS_KEY = 'koe2Filter';
   const filterState = (() => {
-    try { return Object.assign({ fav: '', dl: '', play: '' }, JSON.parse(sessionStorage.getItem(FILTER_SS_KEY))); }
-    catch { return { fav: '', dl: '', play: '' }; }
+    try { return Object.assign({ fav: '', dl: '', play: '', bl: '0' }, JSON.parse(sessionStorage.getItem(FILTER_SS_KEY))); }
+    catch { return { fav: '', dl: '', play: '', bl: '0' }; }
   })();
-  const FILTER_COLORS = { fav: '#FFA33B', dl: '#4190ff', play: '#888' };
+  const FILTER_COLORS = { fav: '#FFA33B', dl: '#4190ff', play: '#888', bl: '#c00' };
 
   function saveFilterState() {
     sessionStorage.setItem(FILTER_SS_KEY, JSON.stringify(filterState));
@@ -284,7 +349,7 @@
       grp.className = 'koe2-fg';
       const lbl = document.createElement('span');
       lbl.textContent = label;
-      lbl.style.cssText = 'color:#555;margin-right:2px;';
+      lbl.className = 'koe2-fl';
       grp.appendChild(lbl);
       [['', '−'], ['1', '済'], ['0', '未']].forEach(([val, text]) => {
         const btn = document.createElement('button');
@@ -303,12 +368,36 @@
       bar.appendChild(grp);
     });
 
+    // BL専用グループ（含む/除外の2状態のみ）
+    const blGrp = document.createElement('span');
+    blGrp.className = 'koe2-fg';
+    const blLbl = document.createElement('span');
+    blLbl.textContent = '🚫';
+    blLbl.className = 'koe2-fl';
+    blGrp.appendChild(blLbl);
+    [['', '含む'], ['0', '除外']].forEach(([val, text]) => {
+      const btn = document.createElement('button');
+      btn.className = 'koe2-fb';
+      btn.dataset.fk = 'bl';
+      btn.dataset.fv = val;
+      btn.textContent = text;
+      btn.addEventListener('click', () => {
+        filterState.bl = val;
+        saveFilterState();
+        updateBtnStyles();
+        applyFilter();
+      });
+      blGrp.appendChild(btn);
+    });
+    bar.appendChild(blGrp);
+
     const resetBtn = document.createElement('button');
     resetBtn.className = 'koe2-fb';
     resetBtn.textContent = 'リセット';
     resetBtn.style.marginLeft = '4px';
     resetBtn.addEventListener('click', () => {
       filterState.fav = filterState.dl = filterState.play = '';
+      filterState.bl = '0';
       saveFilterState();
       updateBtnStyles();
       applyFilter();
@@ -321,6 +410,7 @@
         const active = filterState[btn.dataset.fk] === btn.dataset.fv;
         btn.classList.remove('on-none', 'on-done', 'on-not');
         btn.style.background = '';
+        btn.style.borderColor = '';
         if (!active) return;
         if (btn.dataset.fv === '')  { btn.classList.add('on-none'); }
         else if (btn.dataset.fv === '1') {
@@ -351,6 +441,7 @@
       const dlKey = isArchive ? `live_${n}` : n;
 
       const isFavCard = card.classList.contains('koe2-fav-card') || card.classList.contains('koe2-fav-card--live');
+      const isBLCard  = card.classList.contains('koe2-bl-card');
       const isDl      = !!(downloads[dlKey]?.filename);
       const isPlayed  = !!(playedStore[dlKey]);
 
@@ -361,6 +452,7 @@
       if (filterState.dl   === '0' && isDl)        show = false;
       if (filterState.play === '1' && !isPlayed)   show = false;
       if (filterState.play === '0' && isPlayed)    show = false;
+      if (filterState.bl   === '0' && isBLCard)    show = false;
 
       card.style.display = show ? '' : 'none';
     });
@@ -378,12 +470,14 @@
     injectAll();
     refreshCardMarks();
     refreshFavCards();
+    refreshBlCards();
     injectFilterBar();
     applyFilter();
     const observer = new MutationObserver(() => {
       injectAll();
       refreshCardMarks();
       refreshFavCards();
+      refreshBlCards();
       injectFilterBar();
       applyFilter();
     });
@@ -399,6 +493,11 @@
       if (changes[FAV_KEY])  favCache  = changes[FAV_KEY].newValue  || [];
       if (changes[LFAV_KEY]) lfavCache = changes[LFAV_KEY].newValue || [];
       refreshFavCards();
+      applyFilter();
+    }
+    if (changes[BL_KEY]) {
+      blCache = changes[BL_KEY].newValue || [];
+      refreshBlCards();
       applyFilter();
     }
   });

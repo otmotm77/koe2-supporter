@@ -92,6 +92,92 @@
     return { username, date, title, audioUrl, ext };
   }
 
+  // ── BL機能（詳細ページ用）────────────────────────────────────
+  const BL_KEY = 'blacklist';
+  let blCache = null;
+
+  function loadBl() {
+    return new Promise(resolve => {
+      chrome.storage.local.get(BL_KEY, d => {
+        blCache = d[BL_KEY] || [];
+        resolve();
+      });
+    });
+  }
+
+  function isBl(userId) {
+    return blCache?.some(b => b.id === userId) ?? false;
+  }
+
+  async function toggleBl(userId, name, profileUrl, gender) {
+    if (!blCache) await loadBl();
+    const idx = blCache.findIndex(b => b.id === userId);
+    if (idx >= 0) blCache.splice(idx, 1);
+    else blCache.push({ id: userId, name, profileUrl, gender, addedAt: Date.now() });
+    chrome.storage.local.set({ [BL_KEY]: blCache });
+  }
+
+  function addBlButtonToDetail() {
+    if (document.getElementById('koe2-bl-detail')) return;
+
+    const dlBtn = document.getElementById('koe2-dl-btn');
+    if (!dlBtn) return;
+
+    const heartBtn = document.querySelector('.koe2-heart');
+    if (!heartBtn) return;
+    const userId = heartBtn.dataset.koe2Id;
+    if (!userId) return;
+
+    const nameSpan = isArchive
+      ? (document.querySelector('.desc.detail span.entry_auth') || document.querySelector('span.entry_auth'))
+      : document.querySelector('span.user_name');
+    const name = nameSpan?.textContent.trim() || userId.replace(/\|.*$/, '').replace(/^live:/, '');
+
+    const linkEl = document.querySelector('a[href*="search.php?word="]');
+    const profileUrl = linkEl?.href
+      || (isArchive ? `https://koe-koe.com/archive_search.php?name=${encodeURIComponent(name)}` : '');
+
+    const iconDiv = document.querySelector('.icon');
+    const g = iconDiv?.classList.contains('icon_female') ? '1'
+            : iconDiv?.classList.contains('icon_male')   ? '2'
+            : iconDiv?.classList.contains('icon_couple') ? '3' : '';
+    const GENDER_MAP = { '1': 'female', '2': 'male', '3': 'couple' };
+
+    const btn = document.createElement('button');
+    btn.id = 'koe2-bl-detail';
+
+    function updateBtn(on) {
+      btn.classList.toggle('koe2-bl-active', on);
+      btn.textContent = on ? '🚫ユーザをブラックリストから削除' : '🚫ユーザをブラックリストに追加';
+      btn.title = btn.textContent;
+    }
+
+    updateBtn(isBl(userId));
+
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      await toggleBl(userId, name, profileUrl, GENDER_MAP[g] || '');
+      updateBtn(isBl(userId));
+    });
+
+    dlBtn.insertAdjacentElement('afterend', btn);
+
+    if (!document.getElementById('koe2-bl-style')) {
+      const s = document.createElement('style');
+      s.id = 'koe2-bl-style';
+      s.textContent = [
+        '#koe2-bl-detail {',
+        '  display:inline-block; margin:8px 4px; padding:6px 14px;',
+        '  background:#c33; color:#fff; border:none; border-radius:4px;',
+        '  cursor:pointer; font-size:14px;',
+        '}',
+        '#koe2-bl-detail.koe2-bl-active { background:#922; }',
+      ].join('');
+      document.head.appendChild(s);
+    }
+  }
+
   function markAsDone(btn) {
     btn.textContent = '✓ ダウンロード済み';
     btn.style.background = '#2a7';
@@ -207,4 +293,15 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
+
+  loadBl().then(() => {
+    addBlButtonToDetail();
+    if (!document.getElementById('koe2-bl-detail')) {
+      const blObs = new MutationObserver(() => {
+        addBlButtonToDetail();
+        if (document.getElementById('koe2-bl-detail')) blObs.disconnect();
+      });
+      blObs.observe(document.body, { childList: true, subtree: true });
+    }
+  });
 })();

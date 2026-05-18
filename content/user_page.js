@@ -50,7 +50,6 @@
   function makeHeart(userId, name, profileUrl, gender, live = false) {
     const btn = document.createElement('button');
     btn.className = 'koe2-heart' + (live ? ' koe2-heart--live' : '');
-    btn.textContent = '♥';
     btn.dataset.koe2Id   = userId;
     btn.dataset.koe2Live = live ? '1' : '';
     setHeartState(btn, isFav(userId, live));
@@ -72,6 +71,8 @@
   }
 
   function setHeartState(btn, on) {
+    const live = btn.dataset.koe2Live === '1';
+    btn.textContent = '♥ FAV';
     btn.title = on ? 'お気に入りから削除' : 'お気に入りに追加';
     btn.classList.toggle('koe2-heart--on', on);
   }
@@ -112,9 +113,9 @@
     s.id = 'koe2-styles';
     s.textContent = `
       .koe2-heart {
-        background: none; border: none; padding: 0 2px; margin-right: 2px;
-        cursor: pointer; font-size: 14px; line-height: 13px;
-        vertical-align: middle; color: #ccc; display: inline-block;
+        background: #f5f5f5; border: none; padding: 2px 4px; margin-right: 2px;
+        cursor: pointer; font-size: 12px; border-radius: 4px; line-height: 1;
+        vertical-align: middle; color: #999; display: inline-block; white-space: nowrap;
       }
       .koe2-heart--on { color: #e00; }
       .koe2-heart--live.koe2-heart--on { color: #27ae60; }
@@ -186,7 +187,6 @@
     const displayName = word + extractTrip(a);
     const heart = makeHeart(displayName + '|' + g, displayName, a.href, GENDER[g] || '', false);
     el.insertAdjacentElement('beforebegin', heart);
-    heart.insertAdjacentElement('afterend', makeBlBtn(displayName + '|' + g, displayName, a.href, GENDER[g] || ''));
   }
 
   // 音声一覧 / archive_detail / archive_list / archive_search:
@@ -224,7 +224,6 @@
 
     const heart = makeHeart(userId, displayName, profileUrl, GENDER[g] || '', live);
     el.insertAdjacentElement('beforebegin', heart);
-    heart.insertAdjacentElement('afterend', makeBlBtn(userId, displayName, profileUrl, GENDER[g] || ''));
   }
 
   // post_users.php:
@@ -245,7 +244,6 @@
     const displayName = word + trip;
     const heart = makeHeart(displayName + '|' + g, displayName, a.href, GENDER[g] || '', false);
     a.insertAdjacentElement('beforebegin', heart);
-    heart.insertAdjacentElement('afterend', makeBlBtn(displayName + '|' + g, displayName, a.href, GENDER[g] || ''));
   }
 
   // ── 一括注入 ─────────────────────────────────────────────────
@@ -262,6 +260,10 @@
       const on = isBl(btn.dataset.koe2BlId);
       setBLState(btn, on);
       btn.closest('.content')?.classList.toggle('koe2-bl-card', on);
+    });
+    // BLボタンが一覧にない場合もハートボタン経由でカードを更新
+    document.querySelectorAll('.koe2-heart').forEach(btn => {
+      btn.closest('.content')?.classList.toggle('koe2-bl-card', isBl(btn.dataset.koe2Id));
     });
   }
 

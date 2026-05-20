@@ -203,7 +203,7 @@
     btn.textContent = isArchive ? '⬇ LIVE DL（リネーム付き）' : '⬇ ダウンロード（リネーム付き）';
     btn.style.cssText = [
       'display:inline-block', 'margin:8px 4px', 'padding:6px 14px',
-      `background:${isArchive ? '#27ae60' : '#e05'}`,
+      `background:${isArchive ? '#2471a3' : '#2980b9'}`,
       'color:#fff', 'border:none', 'border-radius:4px',
       'cursor:pointer', 'font-size:14px',
     ].join(';');

@@ -130,14 +130,19 @@
       .koe2-played-row .content-inner { background: #d8d8d8 !important; }
       .koe2-fav-card       { border-left: 3px solid #FFA33B !important; }
       .koe2-fav-card--live { border-left: 3px solid #27ae60 !important; }
-      #koe2-filter { display:flex;align-items:center;gap:6px;padding:5px 8px;background:#f5f5f5;border-bottom:1px solid #ddd;font-size:11px;flex-wrap:wrap;margin-bottom:2px; }
-      .koe2-fg { display:flex;align-items:center;gap:2px; }
-      .koe2-fl { color:#555;width:26px;text-align:center;display:inline-block;font-size:10px; }
-      .koe2-fb { padding:0 8px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;font-size:11px;color:#555;height:20px;line-height:18px;box-sizing:border-box; }
+      #koe2-filter { display:flex;align-items:center;gap:10px;padding:4px 8px;background:#fffcf4;border:3px solid #ffa33b;border-radius:6px;font-size:13px;flex-wrap:nowrap;margin-bottom:2px; }
+      .koe2-fg { display:flex;align-items:center;gap:4px; }
+      .koe2-fl { color:#555;width:20px;text-align:center;display:inline-block;font-size:11px; }
+      .koe2-fb { padding:0 4px;min-width:24px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;font-size:13px;color:#555;height:26px;line-height:24px;box-sizing:border-box; }
       .koe2-fb:hover { border-color:#999; }
       .koe2-fb.on-none { background:#eee;border-color:#aaa; }
       .koe2-fb.on-done { color:#fff; }
       .koe2-fb.on-not  { background:#444;color:#fff;border-color:#444; }
+      #koe2-filter.koe2-pinned { position:sticky;top:4px;z-index:9999;border-radius:6px;margin-bottom:0; }
+      .koe2-gender-btn { background:none;border:none;padding:1px;cursor:pointer;border-radius:4px;display:inline-flex;align-items:center; }
+      .koe2-gender-btn img { width:20px;height:20px;display:block; }
+      .koe2-gender-btn.off img { filter:grayscale(100%) opacity(0.35); }
+      .koe2-gender-btn:hover { opacity:0.75; }
       .koe2-bl-btn {
         background:none; border:none; padding:0 2px; margin-right:2px;
         cursor:pointer; font-size:11px; line-height:1;
@@ -318,8 +323,8 @@
   // ── フィルタバー ─────────────────────────────────────────────
   const FILTER_SS_KEY = 'koe2Filter';
   const filterState = (() => {
-    try { return Object.assign({ fav: '', dl: '', play: '', bl: '0' }, JSON.parse(sessionStorage.getItem(FILTER_SS_KEY))); }
-    catch { return { fav: '', dl: '', play: '', bl: '0' }; }
+    try { return Object.assign({ fav: '', dl: '', play: '', bl: '0', woman: '1', man: '1', couple: '1' }, JSON.parse(sessionStorage.getItem(FILTER_SS_KEY))); }
+    catch { return { fav: '', dl: '', play: '', bl: '0', woman: '1', man: '1', couple: '1' }; }
   })();
   const FILTER_COLORS = { fav: '#FFA33B', dl: '#4190ff', play: '#888', bl: '#c00' };
 
@@ -332,15 +337,28 @@
     // detail ページでは注入しない
     if (location.pathname.match(/\/(archive_)?detail\.php/)) return;
     const target = document.getElementById('content_body') || document.getElementById('content');
-    if (!target || !target.querySelector('a[href*="detail.php?n="]')) return;
+    if (!target || !target.querySelector('a[href*="detail.php?n="], a[href*="live.koe-koe.com"]')) return;
 
     const bar = document.createElement('div');
     bar.id = 'koe2-filter';
 
-    const header = document.createElement('span');
-    header.textContent = 'フィルタ:';
-    header.style.color = '#888';
-    bar.appendChild(header);
+    let pinned = true;
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'koe2-fb';
+    pinBtn.textContent = '📌';
+    pinBtn.style.cssText = 'padding:0 4px;margin-right:4px;';
+    const setPinStyle = () => {
+      pinBtn.style.filter      = pinned ? '' : 'grayscale(1)';
+      pinBtn.style.background  = pinned ? '#ffa33b' : '';
+      pinBtn.style.borderColor = pinned ? '#ffa33b' : '';
+      pinBtn.style.color       = pinned ? '#fff'    : '';
+    };
+    pinBtn.addEventListener('click', () => {
+      pinned = !pinned;
+      bar.classList.toggle('koe2-pinned', pinned);
+      setPinStyle();
+    });
+    bar.appendChild(pinBtn);
 
     [
       { key: 'fav',  label: '♥' },
@@ -352,6 +370,7 @@
       const lbl = document.createElement('span');
       lbl.textContent = label;
       lbl.className = 'koe2-fl';
+      if (key === 'fav') lbl.style.color = '#e00';
       grp.appendChild(lbl);
       [['', '−'], ['1', '済'], ['0', '未']].forEach(([val, text]) => {
         const btn = document.createElement('button');
@@ -373,6 +392,7 @@
     // BL専用グループ（含む/除外の2状態のみ）
     const blGrp = document.createElement('span');
     blGrp.className = 'koe2-fg';
+    blGrp.style.marginLeft = '4px';
     const blLbl = document.createElement('span');
     blLbl.textContent = '🚫';
     blLbl.className = 'koe2-fl';
@@ -393,18 +413,43 @@
     });
     bar.appendChild(blGrp);
 
+    // 性別トグル（WOMAN / MAN / COUPLE）
+    [
+      { key: 'woman',  src: '/img/female3.png', alt: 'WOMAN'  },
+      { key: 'man',    src: '/img/male3.png',   alt: 'MAN'    },
+      { key: 'couple', src: '/img/couple3.png', alt: 'COUPLE' },
+    ].forEach(({ key, src, alt }, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'koe2-gender-btn';
+      btn.dataset.gk = key;
+      if (i === 0) btn.style.marginLeft = '8px';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = alt;
+      btn.appendChild(img);
+      btn.addEventListener('click', () => {
+        filterState[key] = filterState[key] === '0' ? '1' : '0';
+        saveFilterState();
+        updateBtnStyles();
+        applyFilter();
+      });
+      bar.appendChild(btn);
+    });
+
     const resetBtn = document.createElement('button');
     resetBtn.className = 'koe2-fb';
-    resetBtn.textContent = 'リセット';
-    resetBtn.style.marginLeft = '4px';
+    resetBtn.textContent = '×';
+    resetBtn.style.marginLeft = '8px';
     resetBtn.addEventListener('click', () => {
       filterState.fav = filterState.dl = filterState.play = '';
       filterState.bl = '0';
+      filterState.woman = filterState.man = filterState.couple = '1';
       saveFilterState();
       updateBtnStyles();
       applyFilter();
     });
     bar.appendChild(resetBtn);
+
     target.insertAdjacentElement('afterbegin', bar);
 
     function updateBtnStyles() {
@@ -423,8 +468,13 @@
           btn.classList.add('on-not');
         }
       });
+      bar.querySelectorAll('.koe2-gender-btn[data-gk]').forEach(btn => {
+        btn.classList.toggle('off', filterState[btn.dataset.gk] === '0');
+      });
     }
     updateBtnStyles();
+    bar.classList.toggle('koe2-pinned', pinned);
+    setPinStyle();
   }
 
   async function applyFilter() {
@@ -433,28 +483,37 @@
     const noFilter = !Object.values(filterState).some(v => v !== '');
 
     document.querySelectorAll('div.content').forEach(card => {
-      const a = card.querySelector('a[href*="detail.php?n="]');
+      const a = card.querySelector('a[href*="detail.php?n="], a[href*="live.koe-koe.com"]');
       if (!a) { card.style.display = ''; return; }
       if (noFilter) { card.style.display = ''; return; }
 
+      const isLiveStream = a.href.includes('live.koe-koe.com');
       const isArchive = a.href.includes('archive_detail.php');
-      const n = new URLSearchParams(a.href.split('?')[1]).get('n');
-      if (!n) { card.style.display = ''; return; }
-      const dlKey = isArchive ? `live_${n}` : n;
-
       const isFavCard = card.classList.contains('koe2-fav-card') || card.classList.contains('koe2-fav-card--live');
       const isBLCard  = card.classList.contains('koe2-bl-card');
-      const isDl      = !!(downloads[dlKey]?.filename);
-      const isPlayed  = !!(playedStore[dlKey]);
+
+      const iconDiv = card.querySelector('.icon');
+      const cardGender = iconDiv?.classList.contains('icon_female') ? 'woman'
+                       : iconDiv?.classList.contains('icon_male')   ? 'man'
+                       : iconDiv?.classList.contains('icon_couple') ? 'couple' : null;
 
       let show = true;
       if (filterState.fav  === '1' && !isFavCard) show = false;
       if (filterState.fav  === '0' && isFavCard)  show = false;
-      if (filterState.dl   === '1' && !isDl)       show = false;
-      if (filterState.dl   === '0' && isDl)        show = false;
-      if (filterState.play === '1' && !isPlayed)   show = false;
-      if (filterState.play === '0' && isPlayed)    show = false;
-      if (filterState.bl   === '0' && isBLCard)    show = false;
+      if (!isLiveStream) {
+        const n = new URLSearchParams(a.href.split('?')[1]).get('n');
+        if (n) {
+          const dlKey    = isArchive ? `live_${n}` : n;
+          const isDl     = !!(downloads[dlKey]?.filename);
+          const isPlayed = !!(playedStore[dlKey]);
+          if (filterState.dl   === '1' && !isDl)     show = false;
+          if (filterState.dl   === '0' && isDl)       show = false;
+          if (filterState.play === '1' && !isPlayed)  show = false;
+          if (filterState.play === '0' && isPlayed)   show = false;
+        }
+      }
+      if (filterState.bl === '0' && isBLCard) show = false;
+      if (cardGender && filterState[cardGender] === '0') show = false;
 
       card.style.display = show ? '' : 'none';
     });

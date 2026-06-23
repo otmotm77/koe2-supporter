@@ -24,22 +24,46 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 const favList = document.getElementById('fav-list');
 const favEmpty = document.getElementById('fav-empty');
 
+// 表示順（新しい順）を保ちつつ、ピン留めを上部にまとめる
+function sortForDisplay(list) {
+  const reversed = list.slice().reverse();
+  return [
+    ...reversed.filter(f => f.pinned),
+    ...reversed.filter(f => !f.pinned),
+  ];
+}
+
+// 指定キーのお気に入りの pinned を反転（再描画は onChanged リスナーが担う）
+function togglePin(key, id) {
+  chrome.storage.local.get(key, data => {
+    const list = (data[key] || []).map(f =>
+      f.id === id ? { ...f, pinned: !f.pinned } : f
+    );
+    chrome.storage.local.set({ [key]: list });
+  });
+}
+
 function renderFavorites(list) {
   favList.innerHTML = '';
   if (list.length === 0) { favEmpty.style.display = ''; return; }
   favEmpty.style.display = 'none';
   const genderLabels = { female: '女性', male: '男性', couple: 'カップル' };
-  list.slice().reverse().forEach(fav => {
+  sortForDisplay(list).forEach(fav => {
     const li = document.createElement('li');
+    if (fav.pinned) li.className = 'pinned';
     const a = document.createElement('a');
     a.href = fav.profileUrl; a.textContent = fav.name; a.target = '_blank'; a.rel = 'noopener';
     const badge = document.createElement('span');
     badge.className = `gender-badge ${fav.gender || ''}`.trim();
     badge.textContent = genderLabels[fav.gender] || fav.gender || '不明';
+    const pinBtn = document.createElement('button');
+    pinBtn.className = `pin-btn ${fav.pinned ? 'pinned' : ''}`.trim();
+    pinBtn.textContent = '📌'; pinBtn.title = fav.pinned ? 'ピン留め解除' : '上部にピン留め';
+    pinBtn.addEventListener('click', () => togglePin(FAV_KEY, fav.id));
     const delBtn = document.createElement('button');
     delBtn.className = 'del-btn'; delBtn.textContent = '×'; delBtn.title = '削除';
     delBtn.addEventListener('click', () => removeFavorite(fav.id));
-    li.append(a, badge, delBtn);
+    li.append(a, badge, pinBtn, delBtn);
     favList.appendChild(li);
   });
 }
@@ -62,13 +86,18 @@ function renderLiveFavorites(list) {
   if (list.length === 0) { lfavEmpty.style.display = ''; return; }
   lfavEmpty.style.display = 'none';
   const genderLabels = { female: '女性', male: '男性', couple: 'カップル' };
-  list.slice().reverse().forEach(fav => {
+  sortForDisplay(list).forEach(fav => {
     const li = document.createElement('li');
+    if (fav.pinned) li.className = 'pinned';
     const a = document.createElement('a');
     a.href = fav.profileUrl; a.textContent = fav.name; a.target = '_blank'; a.rel = 'noopener';
     const badge = document.createElement('span');
     badge.className = `gender-badge ${fav.gender || ''}`.trim();
     badge.textContent = genderLabels[fav.gender] || fav.gender || 'LIVE';
+    const pinBtn = document.createElement('button');
+    pinBtn.className = `pin-btn ${fav.pinned ? 'pinned' : ''}`.trim();
+    pinBtn.textContent = '📌'; pinBtn.title = fav.pinned ? 'ピン留め解除' : '上部にピン留め';
+    pinBtn.addEventListener('click', () => togglePin(LFAV_KEY, fav.id));
     const delBtn = document.createElement('button');
     delBtn.className = 'del-btn'; delBtn.textContent = '×'; delBtn.title = '削除';
     delBtn.addEventListener('click', () => {
@@ -77,7 +106,7 @@ function renderLiveFavorites(list) {
         chrome.storage.local.set({ [LFAV_KEY]: updated }, () => renderLiveFavorites(updated));
       });
     });
-    li.append(a, badge, delBtn);
+    li.append(a, badge, pinBtn, delBtn);
     lfavList.appendChild(li);
   });
 }

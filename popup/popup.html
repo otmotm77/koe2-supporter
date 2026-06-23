@@ -81,6 +81,19 @@
       line-height: 1;
     }
     .del-btn:hover { color: #e05; }
+    .pin-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0 2px;
+      line-height: 1;
+      opacity: 0.35;
+      filter: grayscale(1);
+    }
+    .pin-btn:hover { opacity: 0.7; }
+    .pin-btn.pinned { opacity: 1; filter: none; }
+    #fav-list li.pinned, #lfav-list li.pinned { background: #fffbe6; }
     #fav-empty, #lfav-empty, #bl-empty { color: #999; padding: 20px 0; text-align: center; }
     #bl-list { list-style: none; }
     #bl-list li {
@@ -307,6 +320,7 @@
       <div class="help-item">
         <div class="help-item-title">♥USER / ♥LIVE タブ</div>
         <p>登録済みユーザー一覧。名前クリックで投稿一覧へ。× で削除。</p>
+        <p>📌 でユーザーを上部にピン留め（再クリックで解除）。</p>
       </div>
 
       <div class="help-item">
@@ -338,6 +352,18 @@
 
     <details class="help-group help-history">
       <summary class="help-group-title">更新履歴</summary>
+      <div class="help-item">
+        <div class="help-item-title">v1.3.0 <span style="font-weight:normal;color:#888">2026-06-23</span></div>
+        <ul>
+          <li>♥USER / ♥LIVE タブにお気に入りのピン留め機能を追加（📌 で上部固定）</li>
+        </ul>
+      </div>
+      <div class="help-item">
+        <div class="help-item-title">v1.2.2 <span style="font-weight:normal;color:#888">2026-05-22</span></div>
+        <ul>
+          <li>フィルタバーに性別（WOMAN / MAN / COUPLE）トグルを追加</li>
+        </ul>
+      </div>
       <div class="help-item">
         <div class="help-item-title">v1.2.1 <span style="font-weight:normal;color:#888">2026-05-20</span></div>
         <ul>
